@@ -12,9 +12,19 @@ class Graph:
     def __init__(self, graph):
         self.residual = graph
         self.n = len(graph)
+        self.adj = Graph.convert_adj_matrix_to_adj_list(graph, self.n)
+        # print(f'adj list: {self.adj}')
         self.height = [0]*self.n
         self.excess = [0]*self.n
 
+    def convert_adj_matrix_to_adj_list(adj_matrix, n):
+        adj_list = [[] for _ in range(n)]
+        for row_index, row in enumerate(adj_matrix):
+            for column_index, element in enumerate(row):
+                if element != 0:
+                    adj_list[row_index].append(column_index)
+                    adj_list[column_index].append(row_index)
+        return adj_list
     def push(self, u, v):
 
         d = min(self.excess[u], self.residual[u][v])
@@ -23,13 +33,13 @@ class Graph:
         self.excess[u] -= d
         self.excess[v] += d
         # print(f'push {u} to {v}')
-        # print(f'    flow: {self.flow}')
+        # print(f'    residual: {self.residual}')
         # print(f'    excess: {self.excess}')
         # time.sleep(3)
     
     def relabel(self, u):
         d = INF
-        for i in range(self.n):
+        for i in self.adj[u]:
             if self.residual[u][i]> 0:
                 d = min (d, self.height[i])
         
@@ -55,13 +65,11 @@ class Graph:
 
     def push_relabel(self, s, t):
         self.height[s] = self.n
-        self.flow = [[0 for _ in range(self.n)] for _ in range(self.n)]
         self.excess = [0]*self.n
         self.excess[s] = INF
 
-        for i in range(self.n):
-            if (i != s):
-                self.push(s, i)
+        for i in self.adj[s]:
+            self.push(s, i)
 
         current = self.find_max_height_vertices(s,t)
         while current:
@@ -69,12 +77,12 @@ class Graph:
             for i in current:
                 # print(f'    working on {i}')
                 pushed = False
-                for j in range(self.n):
+                for j in self.adj[i]:
                     if self.excess[i] <= 0:
                         # print(f'        excess of {i} lower than 0')
                         break
                     if (self.residual[i][j] > 0 and self.height[i] == self.height[j] + 1):
-                        # print(f'        pusing from {i} to {j}' ,self.capacity[i][j], self.flow[i][j], self.height[i], self.height[j])
+                        # print(f'        pusing from {i} to {j}' ,self.residual[i][j], self.height[i], self.height[j])
                         self.push(i,j)
                         pushed = True
 
@@ -145,7 +153,7 @@ def main():
     # graph = Graph(capacity)
     # print(graph.push_relabel(0,3))
     # return
-    for i in range(6,10):
+    for i in range(10):
         path = 'testcases/input/{}.txt'.format(i+1)
         f = open(path, 'r')
         inputs = f.read().splitlines()
