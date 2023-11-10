@@ -6,16 +6,20 @@ import pandas as pd
 from colorama import Fore
 from collections import defaultdict
 import time
+from collections import deque 
 NUM_OF_TEST_CASES = 1
 INF = float('Inf')
 class Graph:
-    def __init__(self, graph):
+    def __init__(self, graph, verbose = False):
         self.residual = graph
         self.n = len(graph)
         self.adj = Graph.convert_adj_matrix_to_adj_list(graph, self.n)
         # print(f'adj list: {self.adj}')
         self.height = [0]*self.n
         self.excess = [0]*self.n
+        # Fast selection
+        self.selection = deque([])
+        self.verbose = verbose
 
     def convert_adj_matrix_to_adj_list(adj_matrix, n):
         adj_list = [[] for _ in range(n)]
@@ -32,10 +36,18 @@ class Graph:
         self.residual[v][u] += d
         self.excess[u] -= d
         self.excess[v] += d
-        # print(f'push {u} to {v}')
-        # print(f'    residual: {self.residual}')
-        # print(f'    excess: {self.excess}')
-        # time.sleep(3)
+
+        if(self.excess[u] <= 0):
+            self.selection.popleft()
+        
+        if (v != self.s and v != self.t and self.excess[v] > 0 and v not in self.selection):
+            self.selection.append(v)
+
+        if self.verbose:
+            print(f'push {u} to {v}')
+            print(f'    residual: {self.residual}')
+            print(f'    excess: {self.excess}')
+            time.sleep(3)
     
     def relabel(self, u):
         d = INF
@@ -45,21 +57,22 @@ class Graph:
         
         if d < INF:
             self.height[u] = d + 1
-        # print (f'relabel {u}')
-        # print(f'    {self.height}')
-        # time.sleep(3)
+        if self.verbose:
+            print (f'relabel {u}')
+            print(f'    {self.height}')
+            time.sleep(3)
     
     def find_max_height_vertices(self, s, t):
-        max_height = []
+        max_height = deque([])
         for i in range(self.n):
             if i != s and i != t and self.excess[i] >  0:
                 if (max_height and self.height[i] > self.height[max_height[0]]):
                     max_height.clear()
                 if (not max_height or self.height[i] == self.height[max_height[0]]):
                     max_height.append(i)
-        
-        # print(f'height {self.height} find_max_height_vertices: {max_height}, {s}, {t}')
-        # time.sleep(3)
+        if self.verbose:
+            print(f'height {self.height} find_max_height_vertices: {max_height}, {s}, {t}')
+            time.sleep(3)
         return max_height
 
 
@@ -67,30 +80,35 @@ class Graph:
         self.height[s] = self.n
         self.excess = [0]*self.n
         self.excess[s] = INF
+        self.s = s
+        self.t = t
 
         for i in self.adj[s]:
             self.push(s, i)
 
-        current = self.find_max_height_vertices(s,t)
-        while current:
-            # print(f'current max_height_verices: {current}')
-            for i in current:
-                # print(f'    working on {i}')
-                pushed = False
-                for j in self.adj[i]:
-                    if self.excess[i] <= 0:
-                        # print(f'        excess of {i} lower than 0')
-                        break
-                    if (self.residual[i][j] > 0 and self.height[i] == self.height[j] + 1):
-                        # print(f'        pusing from {i} to {j}' ,self.residual[i][j], self.height[i], self.height[j])
-                        self.push(i,j)
-                        pushed = True
-
-                if not pushed:
-                    self.relabel(i)
+        self.selection = self.find_max_height_vertices(s,t)
+        while self.selection:
+            i = self.selection[0]
+            if self.verbose:
+                print(f'current max_height_verices: {self.selection}')
+                print(f'    working on {i}')
+            pushed = False
+            for j in self.adj[i]:
+                if self.excess[i] <= 0:
+                    if self.verbose:
+                        print(f'        excess of {i} lower than 0')
                     break
+                if (self.residual[i][j] > 0 and self.height[i] == self.height[j] + 1):
+                    if self.verbose:
+                        print(f'        pusing from {i} to {j}' ,self.residual[i][j], self.height[i], self.height[j])
+                    self.push(i,j)
+                    pushed = True
 
-            current = self.find_max_height_vertices(s,t)
+            if not pushed:
+                self.relabel(i)
+
+            if not self.selection:
+                self.selection = self.find_max_height_vertices(s,t)
 
         # print(self.residual)
         return sum(self.residual[t])
